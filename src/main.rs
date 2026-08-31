@@ -31,6 +31,9 @@ fn main() {
     event_handler.schedule(Event::new(EventType::Arrival, data.first_arrival));
 
     while let Some(event) = event_handler.next() {
+        if numbers.get_count() == data.count {
+            break;
+        } 
         current_time = event.time();
 
         let state = queue.length();
@@ -42,14 +45,6 @@ fn main() {
 
         match event.event_type() {
             EventType::Arrival => {
-                if let Some(interval) =
-                    sample(&mut numbers, data.min_arrival, data.max_arrival, data.count)
-                {
-                    event_handler.schedule(Event::new(EventType::Arrival, current_time + interval));
-                } else {
-                    break;
-                }
-
                 if queue.add() {
                     if queue.has_available_server() {
                         queue.occupy_server();
@@ -65,6 +60,12 @@ fn main() {
                     }
                 } else {
                     losses += 1;
+                }
+
+                if let Some(interval) = sample(&mut numbers, data.min_arrival, data.max_arrival, data.count) {
+                    event_handler.schedule(Event::new(EventType::Arrival, current_time + interval));
+                } else {
+                    break;
                 }
             }
             EventType::Departure => {
@@ -114,11 +115,9 @@ fn main() {
 }
 
 fn sample(numbers: &mut NumberHandler, min: f64, max: f64, limit: usize) -> Option<f64> {
-    let number = numbers.next_number();
-
     if numbers.get_count() == limit {
-        None
-    } else {
-        Some(min + (max - min) * number)
-    }
+        return None;
+    } 
+    let number = numbers.next_number();
+    return Some(min + (max - min) * number);
 }
