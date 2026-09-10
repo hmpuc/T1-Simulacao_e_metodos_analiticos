@@ -1,12 +1,14 @@
-mod event;
+mod evento;
 mod event_handler;
-mod number_handler;
+mod gerador_numerico;
 mod queue;
 mod user_input;
+mod fila;
+mod escalonador;
 
-use event::{Event, EventType};
+use evento::{Event, EventType};
 use event_handler::EventHandler;
-use number_handler::NumberHandler;
+use gerador_numerico::NumberHandler;
 use queue::Queue;
 use user_input::get_initial_data;
 
