@@ -1,7 +1,7 @@
 #[derive(Clone, Copy)]
 pub enum TipoEvento {
-    Arrival,
-    Departure,
+    Chegada,
+    Saida,
     Passagem
 }
 
@@ -9,11 +9,13 @@ pub enum TipoEvento {
 pub struct Evento {
     tipo_evento: TipoEvento,
     tempo: f64,
+    fila_anterior: i32,
+    fila_nova: i32,
 }
 
 impl Evento {
-    pub fn new(tipo_evento: TipoEvento, tempo: f64) -> Self {
-        Self { tipo_evento, tempo }
+    pub fn new(tipo_evento: TipoEvento, tempo: f64, fila_anterior: i32, fila_nova: i32) -> Self {
+        Evento { tipo_evento, tempo, fila_anterior, fila_nova }
     }
 
     pub const fn tempo(&self) -> f64 {

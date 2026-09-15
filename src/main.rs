@@ -1,26 +1,25 @@
 mod evento;
-mod event_handler;
-mod gerador_numerico;
-mod queue;
-mod user_input;
-mod fila;
 mod escalonador;
+mod gerador_numerico;
+mod fila;
+mod user_input;
 
-use evento::{Event, EventType};
-use event_handler::EventHandler;
-use gerador_numerico::NumberHandler;
-use queue::Queue;
+
+use evento::{Evento, TipoEvento};
+use escalonador::Escalonador;
+use gerador_numerico::GeradorNumerico;
+use fila::Fila;
 use user_input::get_initial_data;
 
 fn main() {
     let (data, file) = get_initial_data();
     let mut numbers = match file {
-        Some(file) => NumberHandler::from_file(file),
-        None => NumberHandler::new(),
+        Some(file) => GeradorNumerico::from_file(file),
+        None => GeradorNumerico::new(),
     };
 
-    let mut event_handler = EventHandler::new();
-    let mut queue = Queue::new(data.capacity, data.servers as usize);
+    let mut event_handler = Escalonador::new();
+    let mut queue = Fila::new(data.servers, data.capacity, data.min_arrival, data.max_arrival, data.min_service, data.max_service);
     let mut current_time: f64;
     let mut previous_time = 0.0;
     let mut time_per_state = vec![0.0];
@@ -30,13 +29,13 @@ fn main() {
         return;
     }
 
-    event_handler.schedule(Event::new(EventType::Arrival, data.first_arrival));
+    event_handler.add(Evento::new(TipoEvento::Chegada, data.first_arrival));
 
-    while let Some(event) = event_handler.next() {
-        if numbers.get_count() == data.count {
+    while let Some(event) = event_handler.remove() {
+        if numbers.get_contador() == data.count {
             break;
         } 
-        current_time = event.time();
+        current_time = event.tempo();
 
         let state = queue.length();
         if state >= time_per_state.len() {
@@ -55,8 +54,8 @@ fn main() {
                         else {
                             break;
                         };
-                        event_handler.schedule(Event::new(
-                            EventType::Departure,
+                        event_handler.add(Evento::new(
+                            TipoEvento::Saida,
                             current_time + service_time,
                         ));
                     }

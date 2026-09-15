@@ -64,6 +64,6 @@ pub struct InitialData {
     pub min_service: f64,
     pub max_service: f64,
     pub first_arrival: f64,
-    pub capacity: i64,
-    pub servers: i64,
+    pub capacity: i32,
+    pub servers: i32,
 }
