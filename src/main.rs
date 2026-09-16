@@ -239,20 +239,11 @@ fn determinar_proximo_evento(
     tempo_atual: f64,
 ) -> Option<Evento> {
     let fila = &filas[fila_origem];
-    let tempo_servico = amostra(gerador, fila.min_atendimento(), fila.max_atendimento(), limite)?;
-    let tempo_evento = tempo_atual + tempo_servico;
-
     let destinos = fila.destinos();
-    if destinos.is_empty() {
-        return Some(Evento::new(
-            TipoEvento::Saida,
-            tempo_evento,
-            fila_origem as i32,
-            -1,
-        ));
-    }
 
-    let destino_escolhido = if destinos.len() == 1 {
+    let destino_escolhido = if destinos.is_empty() {
+        -1
+    } else if destinos.len() == 1 && destinos[0].1 >= 1.0 {
         destinos[0].0
     } else {
         if gerador.contador() >= limite {
@@ -260,7 +251,7 @@ fn determinar_proximo_evento(
         }
         let aleatorio = gerador.proximo_numero()?;
         let mut acumulado = 0.0;
-        let mut dest = destinos.last().unwrap().0;
+        let mut dest = -1;
         for &(d, prob) in destinos {
             acumulado += prob;
             if aleatorio <= acumulado {
@@ -270,6 +261,9 @@ fn determinar_proximo_evento(
         }
         dest
     };
+
+    let tempo_servico = amostra(gerador, fila.min_atendimento(), fila.max_atendimento(), limite)?;
+    let tempo_evento = tempo_atual + tempo_servico;
 
     if destino_escolhido < 0 {
         Some(Evento::new(

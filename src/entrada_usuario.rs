@@ -202,19 +202,11 @@ pub fn carregar_de_yaml(caminho: &str) -> (DadosIniciais, Option<BufReader<File>
     let mut filas = Vec::with_capacity(filas_defs.len());
     for f in filas_defs {
         let mut destinos = Vec::new();
-        if f.saidas.is_empty() {
-            destinos.push((-1, 1.0));
-        } else {
-            let mut soma_prob = 0.0;
-            for (alvo, prob) in f.saidas {
-                let idx_alvo = resolver_destino(&alvo, &nome_para_indice);
-                destinos.push((idx_alvo, prob));
-                soma_prob += prob;
-            }
-            if soma_prob < 1.0 - 1e-6 {
-                destinos.push((-1, ((1.0 - soma_prob) * 10000.0).round() / 10000.0));
-            }
+        for (alvo, prob) in f.saidas {
+            let idx_alvo = resolver_destino(&alvo, &nome_para_indice);
+            destinos.push((idx_alvo, prob));
         }
+        destinos.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
         filas.push(ConfiguracaoFila {
             servidores: f.servidores,
