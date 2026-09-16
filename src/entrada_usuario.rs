@@ -9,6 +9,7 @@ pub struct ConfiguracaoFila {
     pub capacidade: i32,
     pub min_atendimento: f64,
     pub max_atendimento: f64,
+    pub destinos: Vec<(i32, f64)>, // -1 saída
 }
 
 #[derive(Clone)]
@@ -43,7 +44,44 @@ pub fn obter_dados_iniciais() -> (DadosIniciais, Option<BufReader<File>>) {
             capacidade,
             min_atendimento,
             max_atendimento,
+            destinos: Vec::new(),
         });
+    }
+
+    if num_filas == 1 {
+        filas[0].destinos = vec![(-1, 1.0)];
+    } else {
+        println!("\n--- Roteamento entre Filas ---");
+        println!("1: Em série");
+        println!("2: Personalizado");
+        let opcao = read_line_default("Escolha o tipo de roteamento [1]: ", "1");
+
+        if opcao == "2" {
+            for i in 0..num_filas {
+                println!("\nDestinos para a Fila Q{}:", i + 1);
+                let quant_destinos = read_usize("  Quantidade de destinos possíveis: ");
+                let mut destinos = Vec::with_capacity(quant_destinos);
+                for d in 0..quant_destinos {
+                    let dest_id = read_i32(&format!(
+                        "    Destino {} (número da fila de 1 a {}, ou -1 para Saída): ",
+                        d + 1,
+                        num_filas
+                    ));
+                    let dest_index = if dest_id > 0 { dest_id - 1 } else { -1 };
+                    let prob = read_f64("    Probabilidade: ");
+                    destinos.push((dest_index, prob));
+                }
+                filas[i].destinos = destinos;
+            }
+        } else {
+            for i in 0..num_filas {
+                if i + 1 < num_filas {
+                    filas[i].destinos = vec![((i + 1) as i32, 1.0)];
+                } else {
+                    filas[i].destinos = vec![(-1, 1.0)];
+                }
+            }
+        }
     }
 
     print!("\nArquivo de números aleatórios (Enter para gerar): ");
@@ -77,6 +115,15 @@ fn read_line(text: &str) -> String {
     line.trim().to_string()
 }
 
+fn read_line_default(text: &str, default: &str) -> String {
+    let line = read_line(text);
+    if line.is_empty() {
+        default.to_string()
+    } else {
+        line
+    }
+}
+
 fn read_usize(text: &str) -> usize {
     read_line(text)
         .parse()
@@ -92,6 +139,5 @@ fn read_i32(text: &str) -> i32 {
 fn read_f64(text: &str) -> f64 {
     read_line(text)
         .parse()
-        .expect("Por favor, informe um número decimal (ponto flutuante) válido.")
+        .expect("Por favor, informe um número decimal válido.")
 }
-

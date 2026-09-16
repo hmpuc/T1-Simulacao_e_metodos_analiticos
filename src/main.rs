@@ -35,6 +35,7 @@ fn main() {
                 if idx == 0 { dados.max_chegada } else { 0.0 },
                 config.min_atendimento,
                 config.max_atendimento,
+                config.destinos.clone(),
             )
         })
         .collect();
@@ -233,20 +234,48 @@ fn determinar_proximo_evento(
     let tempo_servico = amostra(gerador, fila.min_atendimento(), fila.max_atendimento(), limite)?;
     let tempo_evento = tempo_atual + tempo_servico;
 
-    // O fluxo sempre transita sequencialmente para a próxima fila única; na última fila, sai do sistema
-    if fila_origem + 1 < filas.len() {
-        Some(Evento::new(
-            TipoEvento::Passagem,
+    let destinos = fila.destinos();
+    if destinos.is_empty() {
+        return Some(Evento::new(
+            TipoEvento::Saida,
             tempo_evento,
             fila_origem as i32,
-            (fila_origem + 1) as i32,
-        ))
+            -1,
+        ));
+    }
+
+    let destino_escolhido = if destinos.len() == 1 {
+        destinos[0].0
     } else {
+        if gerador.contador() == limite {
+            return None;
+        }
+        let aleatorio = gerador.proximo_numero();
+        let mut acumulado = 0.0;
+        let mut dest = destinos.last().unwrap().0;
+        for &(d, prob) in destinos {
+            acumulado += prob;
+            if aleatorio <= acumulado {
+                dest = d;
+                break;
+            }
+        }
+        dest
+    };
+
+    if destino_escolhido < 0 {
         Some(Evento::new(
             TipoEvento::Saida,
             tempo_evento,
             fila_origem as i32,
             -1,
+        ))
+    } else {
+        Some(Evento::new(
+            TipoEvento::Passagem,
+            tempo_evento,
+            fila_origem as i32,
+            destino_escolhido,
         ))
     }
 }

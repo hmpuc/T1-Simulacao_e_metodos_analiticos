@@ -11,6 +11,7 @@ pub struct Fila {
     servidores_ocupados: i32,
     perdas: i32,
     tempos_estados: Vec<f64>,
+    destinos: Vec<(i32, f64)>,
 }
 
 impl Fila {
@@ -22,6 +23,7 @@ impl Fila {
         max_chegada: f64,
         min_atendimento: f64,
         max_atendimento: f64,
+        destinos: Vec<(i32, f64)>,
     ) -> Self {
         Fila {
             id,
@@ -35,6 +37,7 @@ impl Fila {
             servidores_ocupados: 0,
             perdas: 0,
             tempos_estados: vec![0.0],
+            destinos,
         }
     }
 
@@ -72,6 +75,10 @@ impl Fila {
 
     pub fn max_atendimento(&self) -> f64 {
         self.max_atendimento
+    }
+
+    pub fn destinos(&self) -> &[(i32, f64)] {
+        &self.destinos
     }
 
     pub fn pode_entrar(&self) -> bool {
