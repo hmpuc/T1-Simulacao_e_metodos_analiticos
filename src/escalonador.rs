@@ -13,7 +13,7 @@ impl Escalonador {
         }
     }
 
-    pub fn add(&mut self, evento: Evento) {
+    pub fn adicionar(&mut self, evento: Evento) {
         let mut posicao = 0;
         while posicao < self.eventos.len() && self.eventos[posicao].tempo() <= evento.tempo() {
             posicao += 1;
@@ -21,8 +21,7 @@ impl Escalonador {
         self.eventos.insert(posicao, evento);
     }
 
-    pub fn remove(&mut self) -> Option<Evento> {
+    pub fn remover(&mut self) -> Option<Evento> {
         self.eventos.pop_front()
     }
 }
-

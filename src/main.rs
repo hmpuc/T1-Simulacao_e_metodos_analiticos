@@ -1,124 +1,252 @@
-mod evento;
+mod entrada_usuario;
 mod escalonador;
-mod gerador_numerico;
+mod evento;
 mod fila;
-mod user_input;
+mod gerador_numerico;
 
-
-use evento::{Evento, TipoEvento};
+use entrada_usuario::obter_dados_iniciais;
 use escalonador::Escalonador;
-use gerador_numerico::GeradorNumerico;
+use evento::{Evento, TipoEvento};
 use fila::Fila;
-use user_input::get_initial_data;
+use gerador_numerico::GeradorNumerico;
 
 fn main() {
-    let (data, file) = get_initial_data();
-    let mut numbers = match file {
-        Some(file) => GeradorNumerico::from_file(file),
+    let (dados, arquivo) = obter_dados_iniciais();
+    let mut gerador = match arquivo {
+        Some(arq) => GeradorNumerico::de_arquivo(arq),
         None => GeradorNumerico::new(),
     };
 
-    let mut event_handler = Escalonador::new();
-    let mut queue = Fila::new(data.servers, data.capacity, data.min_arrival, data.max_arrival, data.min_service, data.max_service);
-    let mut current_time: f64;
-    let mut previous_time = 0.0;
-    let mut time_per_state = vec![0.0];
-    let mut losses = 0;
-
-    if data.count == 0 {
+    if dados.quantidade_numeros == 0 {
         return;
     }
 
-    event_handler.add(Evento::new(TipoEvento::Chegada, data.first_arrival));
+    let mut escalonador = Escalonador::new();
+    let mut filas: Vec<Fila> = dados
+        .filas
+        .iter()
+        .enumerate()
+        .map(|(idx, config)| {
+            Fila::new(
+                idx + 1,
+                config.servidores,
+                config.capacidade,
+                if idx == 0 { dados.min_chegada } else { 0.0 },
+                if idx == 0 { dados.max_chegada } else { 0.0 },
+                config.min_atendimento,
+                config.max_atendimento,
+            )
+        })
+        .collect();
 
-    while let Some(event) = event_handler.remove() {
-        if numbers.get_contador() == data.count {
+    let limite = dados.quantidade_numeros;
+    let mut tempo_anterior = 0.0;
+
+    escalonador.adicionar(Evento::new(
+        TipoEvento::Chegada,
+        dados.primeira_chegada,
+        -1,
+        0,
+    ));
+
+    while let Some(evento) = escalonador.remover() {
+        if gerador.contador() == limite {
             break;
-        } 
-        current_time = event.tempo();
-
-        let state = queue.length();
-        if state >= time_per_state.len() {
-            time_per_state.resize(state + 1, 0.0);
         }
-        time_per_state[state] += current_time - previous_time;
-        previous_time = current_time;
 
-        match event.event_type() {
-            EventType::Arrival => {
-                if queue.add() {
-                    if queue.has_available_server() {
-                        queue.occupy_server();
-                        let Some(service_time) =
-                            sample(&mut numbers, data.min_service, data.max_service, data.count)
-                        else {
+        let tempo_atual = evento.tempo();
+        let tempo_decorrido = tempo_atual - tempo_anterior;
+
+        for fila in &mut filas {
+            fila.acumular_tempo(tempo_decorrido);
+        }
+        tempo_anterior = tempo_atual;
+
+        match evento.tipo() {
+            TipoEvento::Chegada => {
+                let fila_nova = evento.fila_nova() as usize;
+
+                if filas[fila_nova].entrada() {
+                    if filas[fila_nova].tem_servidor_disponivel() {
+                        filas[fila_nova].ocupar_servidor();
+                        if let Some(prox_evento) = determinar_proximo_evento(
+                            fila_nova,
+                            &filas,
+                            &mut gerador,
+                            limite,
+                            tempo_atual,
+                        ) {
+                            escalonador.adicionar(prox_evento);
+                        } else {
                             break;
-                        };
-                        event_handler.add(Evento::new(
-                            TipoEvento::Saida,
-                            current_time + service_time,
-                        ));
+                        }
                     }
-                } else {
-                    losses += 1;
                 }
 
-                if let Some(interval) = sample(&mut numbers, data.min_arrival, data.max_arrival, data.count) {
-                    event_handler.schedule(Event::new(EventType::Arrival, current_time + interval));
-                } else {
-                    break;
-                }
-            }
-            EventType::Departure => {
-                queue.remove();
-                queue.release_server();
-
-                if queue.has_waiting_client() {
-                    queue.occupy_server();
-                    let Some(service_time) =
-                        sample(&mut numbers, data.min_service, data.max_service, data.count)
-                    else {
+                if fila_nova == 0 {
+                    if let Some(intervalo) =
+                        amostra(&mut gerador, dados.min_chegada, dados.max_chegada, limite)
+                    {
+                        escalonador.adicionar(Evento::new(
+                            TipoEvento::Chegada,
+                            tempo_atual + intervalo,
+                            -1,
+                            0,
+                        ));
+                    } else {
                         break;
-                    };
-                    event_handler.schedule(Event::new(
-                        EventType::Departure,
-                        current_time + service_time,
-                    ));
+                    }
+                }
+            }
+
+            TipoEvento::Passagem => {
+                let fila_anterior = evento.fila_anterior() as usize;
+                let fila_nova = evento.fila_nova() as usize;
+
+                filas[fila_anterior].saida();
+                filas[fila_anterior].liberar_servidor();
+
+                let entrou_nova = filas[fila_nova].entrada();
+
+                if filas[fila_anterior].tem_cliente_na_espera() {
+                    filas[fila_anterior].ocupar_servidor();
+                    if let Some(prox_evento) = determinar_proximo_evento(
+                        fila_anterior,
+                        &filas,
+                        &mut gerador,
+                        limite,
+                        tempo_atual,
+                    ) {
+                        escalonador.adicionar(prox_evento);
+                    } else {
+                        break;
+                    }
+                }
+
+                if entrou_nova && filas[fila_nova].tem_servidor_disponivel() {
+                    filas[fila_nova].ocupar_servidor();
+                    if let Some(prox_evento) = determinar_proximo_evento(
+                        fila_nova,
+                        &filas,
+                        &mut gerador,
+                        limite,
+                        tempo_atual,
+                    ) {
+                        escalonador.adicionar(prox_evento);
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            TipoEvento::Saida => {
+                let fila_anterior = evento.fila_anterior() as usize;
+
+                filas[fila_anterior].saida();
+                filas[fila_anterior].liberar_servidor();
+
+                if filas[fila_anterior].tem_cliente_na_espera() {
+                    filas[fila_anterior].ocupar_servidor();
+                    if let Some(prox_evento) = determinar_proximo_evento(
+                        fila_anterior,
+                        &filas,
+                        &mut gerador,
+                        limite,
+                        tempo_atual,
+                    ) {
+                        escalonador.adicionar(prox_evento);
+                    } else {
+                        break;
+                    }
                 }
             }
         }
     }
 
-    let total_time: f64 = time_per_state.iter().sum();
+    let tempo_total = tempo_anterior;
 
-    println!("Fila:    Q1 (G/G/{}/{})", data.servers, data.capacity);
-    println!(
-        "Chegada: {:.2} ... {:.2}",
-        data.min_arrival, data.max_arrival
-    );
-    println!(
-        "Serviço: {:.2} ... {:.2}",
-        data.min_service, data.max_service
-    );
-    println!("\n-------------------------------");
-    println!("Estado\t\tTempo\t\tProbabilidade");
+    for fila in filas.iter() {
+        let nome_fila = format!("Q{}", fila.id());
+        let cap_str = if fila.capacidade() < 0 {
+            "inf".to_string()
+        } else {
+            fila.capacidade().to_string()
+        };
 
-    for (state, time) in time_per_state.iter().enumerate() {
-        if *time > 0.0 {
-            let probability = time / total_time * 100.0;
-            println!("{}\t\t{:.2}\t\t{:.2}%", state, time, probability);
+        println!("\n=================================================");
+        println!(
+            "Fila:    {} (G/G/{}/{})",
+            nome_fila,
+            fila.servidores(),
+            cap_str
+        );
+        if fila.min_chegada() > 0.0 || fila.max_chegada() > 0.0 {
+            println!(
+                "Chegada: {:.2} ... {:.2}",
+                fila.min_chegada(),
+                fila.max_chegada()
+            );
         }
+        println!(
+            "Serviço: {:.2} ... {:.2}",
+            fila.min_atendimento(),
+            fila.max_atendimento()
+        );
+        println!("-------------------------------------------------");
+        println!("Estado\t\tTempo\t\tProbabilidade");
+
+        for (estado, &tempo) in fila.tempos_estados().iter().enumerate() {
+            if tempo > 0.0 {
+                let probabilidade = if tempo_total > 0.0 {
+                    tempo / tempo_total * 100.0
+                } else {
+                    0.0
+                };
+                println!("{}\t\t{:.4}\t\t{:.2}%", estado, tempo, probabilidade);
+            }
+        }
+
+        println!("-------------------------------------------------");
+        println!("Número de perdas: {}", fila.perdas());
     }
 
-    println!("\n-------------------------------");
-    println!("\nNúmero de perdas: {losses}");
-    println!("\nTempo médio da simulação: {:.2}", total_time);
+    println!("\n=================================================");
+    println!("Tempo total da simulação: {:.4}", tempo_total);
 }
 
-fn sample(numbers: &mut NumberHandler, min: f64, max: f64, limit: usize) -> Option<f64> {
-    if numbers.get_count() == limit {
+fn amostra(gerador: &mut GeradorNumerico, min: f64, max: f64, limite: usize) -> Option<f64> {
+    if gerador.contador() == limite {
         return None;
-    } 
-    let number = numbers.next_number();
-    return Some(min + (max - min) * number);
+    }
+    let numero = gerador.proximo_numero();
+    Some(min + (max - min) * numero)
+}
+
+fn determinar_proximo_evento(
+    fila_origem: usize,
+    filas: &[Fila],
+    gerador: &mut GeradorNumerico,
+    limite: usize,
+    tempo_atual: f64,
+) -> Option<Evento> {
+    let fila = &filas[fila_origem];
+    let tempo_servico = amostra(gerador, fila.min_atendimento(), fila.max_atendimento(), limite)?;
+    let tempo_evento = tempo_atual + tempo_servico;
+
+    // O fluxo sempre transita sequencialmente para a próxima fila única; na última fila, sai do sistema
+    if fila_origem + 1 < filas.len() {
+        Some(Evento::new(
+            TipoEvento::Passagem,
+            tempo_evento,
+            fila_origem as i32,
+            (fila_origem + 1) as i32,
+        ))
+    } else {
+        Some(Evento::new(
+            TipoEvento::Saida,
+            tempo_evento,
+            fila_origem as i32,
+            -1,
+        ))
+    }
 }
