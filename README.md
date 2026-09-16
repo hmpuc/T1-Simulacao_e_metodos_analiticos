@@ -19,7 +19,7 @@ Para instruir os parametros no terminal pode se executar o binário diretamente 
 - Opção 2: Usar um arquivo como input
   
 Pode ser usado uma arquivo.yml como input, seguindo o modelo de entrada_default.yml.
-Tem as opções pré-definidas entrada.yml e entrada_extra.yml para exemplos.
+Tem as opções pré-definidas entrada.yml e entrada_modelo.yml para exemplos.
 
 Parar executar com as instruções em arquivos, execute o programa assim:
 `./target/release/T1-Simulacao_e_metodos_analiticos <nome_do_arquivo.yml>`
