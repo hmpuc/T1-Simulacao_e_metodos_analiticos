@@ -32,23 +32,34 @@ impl GeradorNumerico {
         }
     }
 
-    pub fn proximo_numero(&mut self) -> f64 {
-        self.contador += 1;
+    pub fn proximo_numero(&mut self) -> Option<f64> {
         match &mut self.leitor {
             Some(leitor) => {
-                let mut linha = String::new();
-                leitor
-                    .read_line(&mut linha)
-                    .expect("erro ao ler um número do arquivo");
-                linha
-                    .trim()
-                    .parse::<f64>()
-                    .expect("a linha não contém um número válido")
+                loop {
+                    let mut linha = String::new();
+                    let bytes = leitor
+                        .read_line(&mut linha)
+                        .expect("erro ao ler um número do arquivo");
+                    if bytes == 0 {
+                        return None;
+                    }
+                    let trimmed = linha.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    self.contador += 1;
+                    return Some(
+                        trimmed
+                            .parse::<f64>()
+                            .expect("a linha não contém um número válido"),
+                    );
+                }
             }
             None => {
+                self.contador += 1;
                 let aux = ((A as u128 * self.anterior as u128 + C as u128) & ((M as u128) - 1)) as u64;
                 self.anterior = aux;
-                aux as f64 / M as f64
+                Some(aux as f64 / M as f64)
             }
         }
     }

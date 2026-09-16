@@ -1,0 +1,19 @@
+chegada: 
+
+filas:
+  Q1:
+    servidores:
+    capacidade:
+    min_chegada:
+    max_chegada:
+    min_atendimento:
+    max_atendimento:
+  Q2: 
+    servidores:
+    capacidade:
+    min_atendimento:
+    max_atendimento:
+
+quantidade_numeros: 
+
+arquivo_numeros:

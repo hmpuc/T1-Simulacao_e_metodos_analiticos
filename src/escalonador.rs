@@ -25,3 +25,4 @@ impl Escalonador {
         self.eventos.pop_front()
     }
 }
+

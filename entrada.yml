@@ -1,0 +1,21 @@
+chegada_inicial: 2.5
+
+filas:
+  Q1:
+    servidores: 2
+    capacidade: 3
+    min_chegada: 1.0
+    max_chegada: 5.0
+    min_atendimento: 4.0
+    max_atendimento: 5.0
+    saidas:
+      Q2: 1.0
+  Q2: 
+    servidores: 1
+    capacidade: 5
+    min_atendimento: 1.0
+    max_atendimento: 3.0
+
+quantidade_numeros: 100000
+
+arquivo_numeros:

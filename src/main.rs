@@ -31,8 +31,8 @@ fn main() {
                 idx + 1,
                 config.servidores,
                 config.capacidade,
-                if idx == 0 { dados.min_chegada } else { 0.0 },
-                if idx == 0 { dados.max_chegada } else { 0.0 },
+                config.min_chegada,
+                config.max_chegada,
                 config.min_atendimento,
                 config.max_atendimento,
                 config.destinos.clone(),
@@ -43,15 +43,20 @@ fn main() {
     let limite = dados.quantidade_numeros;
     let mut tempo_anterior = 0.0;
 
+    let fila_inicial = filas
+        .iter()
+        .position(|f| f.min_chegada() > 0.0 || f.max_chegada() > 0.0)
+        .unwrap_or(0);
+
     escalonador.adicionar(Evento::new(
         TipoEvento::Chegada,
         dados.primeira_chegada,
         -1,
-        0,
+        fila_inicial as i32,
     ));
 
     while let Some(evento) = escalonador.remover() {
-        if gerador.contador() == limite {
+        if gerador.contador() >= limite {
             break;
         }
 
@@ -84,15 +89,18 @@ fn main() {
                     }
                 }
 
-                if fila_nova == 0 {
-                    if let Some(intervalo) =
-                        amostra(&mut gerador, dados.min_chegada, dados.max_chegada, limite)
-                    {
+                if filas[fila_nova].min_chegada() > 0.0 || filas[fila_nova].max_chegada() > 0.0 {
+                    if let Some(intervalo) = amostra(
+                        &mut gerador,
+                        filas[fila_nova].min_chegada(),
+                        filas[fila_nova].max_chegada(),
+                        limite,
+                    ) {
                         escalonador.adicionar(Evento::new(
                             TipoEvento::Chegada,
                             tempo_atual + intervalo,
                             -1,
-                            0,
+                            fila_nova as i32,
                         ));
                     } else {
                         break;
@@ -169,14 +177,14 @@ fn main() {
     for fila in filas.iter() {
         let nome_fila = format!("Q{}", fila.id());
         let cap_str = if fila.capacidade() < 0 {
-            "inf".to_string()
+            "".to_string()
         } else {
-            fila.capacidade().to_string()
+            format!("/{}", fila.capacidade())
         };
 
         println!("\n=================================================");
         println!(
-            "Fila:    {} (G/G/{}/{})",
+            "Fila:    {} (G/G/{}{})",
             nome_fila,
             fila.servidores(),
             cap_str
@@ -216,10 +224,10 @@ fn main() {
 }
 
 fn amostra(gerador: &mut GeradorNumerico, min: f64, max: f64, limite: usize) -> Option<f64> {
-    if gerador.contador() == limite {
+    if gerador.contador() >= limite {
         return None;
     }
-    let numero = gerador.proximo_numero();
+    let numero = gerador.proximo_numero()?;
     Some(min + (max - min) * numero)
 }
 
@@ -247,10 +255,10 @@ fn determinar_proximo_evento(
     let destino_escolhido = if destinos.len() == 1 {
         destinos[0].0
     } else {
-        if gerador.contador() == limite {
+        if gerador.contador() >= limite {
             return None;
         }
-        let aleatorio = gerador.proximo_numero();
+        let aleatorio = gerador.proximo_numero()?;
         let mut acumulado = 0.0;
         let mut dest = destinos.last().unwrap().0;
         for &(d, prob) in destinos {
@@ -279,3 +287,4 @@ fn determinar_proximo_evento(
         ))
     }
 }
+
