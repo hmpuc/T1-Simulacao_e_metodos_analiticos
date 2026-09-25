@@ -115,8 +115,6 @@ fn main() {
                 filas[fila_anterior].saida();
                 filas[fila_anterior].liberar_servidor();
 
-                let entrou_nova = filas[fila_nova].entrada();
-
                 if filas[fila_anterior].tem_cliente_na_espera() {
                     filas[fila_anterior].ocupar_servidor();
                     if let Some(prox_evento) = determinar_proximo_evento(
@@ -131,6 +129,8 @@ fn main() {
                         break;
                     }
                 }
+
+                let entrou_nova = filas[fila_nova].entrada();
 
                 if entrou_nova && filas[fila_nova].tem_servidor_disponivel() {
                     filas[fila_nova].ocupar_servidor();
