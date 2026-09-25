@@ -8,6 +8,8 @@ filas:
     max_chegada:
     min_atendimento:
     max_atendimento:
+    saidas:
+      Q2: 
   Q2: 
     servidores:
     capacidade:
