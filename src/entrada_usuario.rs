@@ -322,6 +322,7 @@ pub fn obter_dados_iniciais() -> (DadosIniciais, Option<BufReader<File>>) {
                     let prob = read_f64("    Probabilidade: ");
                     destinos.push((dest_index, prob));
                 }
+                destinos.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
                 filas[i].destinos = destinos;
             }
         } else {

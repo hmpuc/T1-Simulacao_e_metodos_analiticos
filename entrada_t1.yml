@@ -15,7 +15,7 @@ filas:
     servidores: 2
     capacidade: 5
     min_atendimento: 4.0
-    max_atendimento: 8.0
+    max_atendimento: 6.0
     saidas:
       Q1: 0.3
       Q2: 0.5
